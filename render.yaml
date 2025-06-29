@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: telegram-fitness-bot
+    env: python
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python main.py"
+    envVars:
+      - key: REMINDER_TOKEN
+        value: your_telegram_bot_token
+      - key: OPENAI_API_KEY
+        value: your_openai_or_openrouter_api_key

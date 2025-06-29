@@ -1,5 +1,5 @@
 import asyncio
-import sys,re
+import sys,re,os
 import json
 from openai import OpenAI
 from aiogram import Bot, Dispatcher, executor, types
@@ -10,10 +10,8 @@ if sys.platform.startswith('win'):
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 # Load config
-with open("config.json") as f:
-    config = json.load(f)
 
-bot_token = config['Reminder_token']
+bot_token = os.getenv("REMINDER_TOKEN")
 # OpenAI.base_URL="https://openrouter.ai/api/v1"
 # OpenAI.api_key = config['OpenAI_API_Key']
 
@@ -87,7 +85,7 @@ The plan should include meals for breakfast, lunch, and dinner with timings and 
     try:
         client=OpenAI(
             base_url="https://openrouter.ai/api/v1",
-            api_key=config['OpenAI_API_Key'],
+            api_key=os.getenv("OPENAI_API_KEY"),
         )
         response = client.chat.completions.create(
             model="openai/gpt-4o",
