@@ -9,8 +9,11 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 if sys.platform.startswith('win'):
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
-# Load config
+# with open("config.json") as f:
+#     config = json.load(f)
 
+# Load config
+# bot_token=config['Reminder_token']
 bot_token = os.getenv("REMINDER_TOKEN")
 # OpenAI.base_URL="https://openrouter.ai/api/v1"
 # OpenAI.api_key = config['OpenAI_API_Key']
@@ -26,13 +29,14 @@ bulk = InlineKeyboardButton(text="Bulk", callback_data="Bulk")
 cut = InlineKeyboardButton(text="Cuts", callback_data="Cuts")
 category_buttons = InlineKeyboardMarkup().add(bulk, cut)
 
-sixty_seventy = InlineKeyboardButton(text="60-70", callback_data="60-70")
-weight_buttons = InlineKeyboardMarkup().add(sixty_seventy)
+weights = ["50-55", "55-60", "60-65", "65-70", "70-75"]
+weight_buttons = [InlineKeyboardButton(text=w, callback_data=w) for w in weights]
+weight_list = InlineKeyboardMarkup(row_width=2).add(*weight_buttons)
 
-height_165 = InlineKeyboardButton(text="165 cm", callback_data="165")
-height_170 = InlineKeyboardButton(text="170 cm", callback_data="170")
-height_175 = InlineKeyboardButton(text="175 cm", callback_data="175")
-height_buttons = InlineKeyboardMarkup().add(height_165, height_170, height_175)
+# Height Buttons
+heights = ["160-165", "165-170", "170-175", "175-180"]
+height_buttons = [InlineKeyboardButton(text=h, callback_data=h) for h in heights]
+height_list = InlineKeyboardMarkup(row_width=2).add(*height_buttons)
 
 def clean_markdown(text):
     text = re.sub(r'#+\s?', '', text)                # Remove headings
@@ -52,16 +56,16 @@ async def start_command(msg: types.Message):
 @dp.callback_query_handler(text=["Bulk", "Cuts"])
 async def handle_category(call: types.CallbackQuery):
     user_data[call.from_user.id]["category"] = call.data
-    await call.message.answer("Please select your weight range:", reply_markup=weight_buttons)
+    await call.message.answer("Please select your weight range:", reply_markup=weight_list)
 
 # Weight selected
-@dp.callback_query_handler(text=["60-70"])
+@dp.callback_query_handler(text=["50-55", "55-60", "60-65", "65-70", "70-75"])
 async def handle_weight(call: types.CallbackQuery):
     user_data[call.from_user.id]["weight"] = call.data
-    await call.message.answer("Now select your height:", reply_markup=height_buttons)
+    await call.message.answer("Now select your height:", reply_markup=height_list)
 
-# Height selected → Call OpenAI
-@dp.callback_query_handler(text=["165", "170", "175"])
+# Height selected 
+@dp.callback_query_handler(text=["160-165", "165-170", "170-175", "175-180"])
 async def handle_height(call: types.CallbackQuery):
     user_id = call.from_user.id
     user_data[user_id]["height"] = call.data
@@ -70,8 +74,9 @@ async def handle_height(call: types.CallbackQuery):
     goal = user_data[user_id]["category"]
     weight = user_data[user_id]["weight"]
     height = user_data[user_id]["height"]
+    # print(goal,weight,height)
 
-    await call.message.answer("Generating your personalized diet plan... 🥗")
+    msg = await call.message.answer("Generating your personalized diet plan... 🥗")
 
     # OpenAI prompt
     prompt = f"""
@@ -85,15 +90,17 @@ The plan should include meals for breakfast, lunch, and dinner with timings and 
     try:
         client=OpenAI(
             base_url="https://openrouter.ai/api/v1",
+            # api_key=config['OpenAI_API_Key']
             api_key=os.getenv("OPENAI_API_KEY"),
         )
         response = client.chat.completions.create(
             model="openai/gpt-4o",
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=500
+            max_tokens=1500
         )
         plan = response.choices[0].message.content
         clean_plan=clean_markdown(plan)
+        await msg.delete()
         await call.message.answer(clean_plan)
     except Exception as e:
         await call.message.answer("Failed to fetch diet plan. Try again later.")
